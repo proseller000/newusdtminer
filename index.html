@@ -22,7 +22,7 @@
     const { useState, useEffect } = React;
     const { createRoot } = ReactDOM;
 
-    const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbwPi5SXyRLE3VLjtO5iD6aMPIh7KwUc83GcQrnsMhtUSLx-MfvhfCzGfVhC7ESCj_D_/exec'; // Your Web App URL
+    const GOOGLE_SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycbydOtV7Ll-WLKo-pfcL8UGJHIVt2KGSTFKdgI-Acb-LPVLnFl7rJL20cnUGmOMzgNfb/exec'; // Updated Web App URL
     const USDT_ADDRESS = 'TLq6qhGHBkzGcGAQaePq7zxdoMEiChqCQC';
 
     const hashPassword = (password) => password;
@@ -101,6 +101,7 @@
       const [withdrawAddress, setWithdrawAddress] = useState('');
       const [referralLink, setReferralLink] = useState('');
       const [referrerEmail, setReferrerEmail] = useState(null);
+      const [errorMessage, setErrorMessage] = useState(''); // Added for error display
       const { exclusiveMiners, regularMiners } = generateMiners();
 
       useEffect(() => {
@@ -127,11 +128,13 @@
               if (data.status === 'success') {
                 setWallet(data.balance);
               } else {
-                alert('Get Balance failed: ' + (data.message || 'Unknown error'));
+                console.error('Get Balance failed:', data.message);
+                setErrorMessage('Failed to fetch balance: ' + (data.message || 'Unknown error'));
               }
             })
             .catch((error) => {
-              alert('Get Balance error: ' + error.message);
+              console.error('Get Balance error:', error);
+              setErrorMessage('Get Balance error: ' + error.message);
             });
 
           fetch(GOOGLE_SHEETS_API_URL, {
@@ -144,11 +147,13 @@
               if (data.status === 'success') {
                 setReferrals(data.referrals || []);
               } else {
-                alert('Get Referrals failed: ' + (data.message || 'Unknown error'));
+                console.error('Get Referrals failed:', data.message);
+                setErrorMessage('Failed to fetch referrals: ' + (data.message || 'Unknown error'));
               }
             })
             .catch((error) => {
-              alert('Get Referrals error: ' + error.message);
+              console.error('Get Referrals error:', error);
+              setErrorMessage('Get Referrals error: ' + error.message);
             });
 
           const baseUrl = window.location.origin;
@@ -190,11 +195,13 @@
                       if (data.status === 'success') {
                         setWallet(data.balance);
                       } else {
-                        alert('Deposit failed: ' + (data.message || 'Unknown error'));
+                        console.error('Deposit failed:', data.message);
+                        setErrorMessage('Deposit failed: ' + (data.message || 'Unknown error'));
                       }
                     })
                     .catch((error) => {
-                      alert('Deposit error: ' + error.message);
+                      console.error('Deposit error:', error);
+                      setErrorMessage('Deposit error: ' + error.message);
                     });
                 }
                 return null;
@@ -218,56 +225,69 @@
 
       const handleSignup = (e) => {
         e.preventDefault();
+        setErrorMessage(''); // Clear previous errors
         const email = e.target.email.value;
         const password = e.target.password.value;
         if (!email || !password) {
-          alert('Please fill in both email and password.');
+          setErrorMessage('Please fill in both email and password.');
           return;
         }
         if (email === referrerEmail) {
-          alert('You cannot sign up with the same email as the referrer.');
+          setErrorMessage('You cannot sign up with the same email as the referrer.');
           return;
         }
         const passwordHash = hashPassword(password);
         const payload = { action: 'signup', email, passwordHash, referrer: referrerEmail };
+        console.log('Sending signup request:', payload); // Debug log
         fetch(GOOGLE_SHEETS_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
-          .then((res) => res.json())
+          .then((res) => {
+            console.log('Signup response status:', res.status); // Debug log
+            return res.json();
+          })
           .then((data) => {
+            console.log('Signup response data:', data); // Debug log
             if (data.status === 'success') {
               alert('Signup successful! Please login.');
               setShowSignup(false);
               setReferrerEmail(null);
               window.history.replaceState({}, document.title, window.location.pathname);
             } else {
-              alert('Signup failed: ' + (data.message || 'Unknown error'));
+              setErrorMessage('Signup failed: ' + (data.message || 'Unknown error'));
             }
           })
           .catch((error) => {
-            alert('Signup error: ' + error.message);
+            console.error('Signup fetch error:', error); // Debug log
+            setErrorMessage('Signup error: ' + error.message);
           });
       };
 
       const handleLogin = (e) => {
         e.preventDefault();
+        setErrorMessage('');
         const email = e.target.email.value;
         const password = e.target.password.value;
         if (!email || !password) {
-          alert('Please fill in both email and password.');
+          setErrorMessage('Please fill in both email and password.');
           return;
         }
         const passwordHash = hashPassword(password);
         const payload = { action: 'login', email, passwordHash };
+        console.log('Sending login request:', payload);
         fetch(GOOGLE_SHEETS_API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         })
-          .then((res) => res.json())
+          .then((res) => {
+            console.log('Login response status:', res.status);
+            return res.json();
+          })
           .then((data) => {
+            console.log('Login response data:', data);
             if (data.status === 'success') {
               setUser({ email });
               setWallet(data.balance);
@@ -275,17 +295,19 @@
               alert('Login successful!');
               window.history.replaceState({}, document.title, window.location.pathname);
             } else {
-              alert('Login failed: ' + (data.message || 'Unknown error'));
+              setErrorMessage('Login failed: ' + (data.message || 'Unknown error'));
             }
           })
           .catch((error) => {
-            alert('Login error: ' + error.message);
+            console.error('Login fetch error:', error);
+            setErrorMessage('Login error: ' + error.message);
           });
       };
 
       const handleDeposit = () => {
+        setErrorMessage('');
         if (!depositAmount || parseFloat(depositAmount) <= 0) {
-          alert('Please enter a valid deposit amount.');
+          setErrorMessage('Please enter a valid deposit amount.');
           return;
         }
         const amount = parseFloat(depositAmount);
@@ -300,28 +322,29 @@
             if (data.status === 'success') {
               setShowDepositConfirmation(true);
             } else {
-              alert('Deposit request failed: ' + (data.message || 'Unknown error'));
+              setErrorMessage('Deposit request failed: ' + (data.message || 'Unknown error'));
             }
           })
           .catch((error) => {
-            alert('Deposit request error: ' + error.message);
+            setErrorMessage('Deposit request error: ' + error.message);
           });
       };
 
       const handleWithdraw = (e) => {
         e.preventDefault();
+        setErrorMessage('');
         const amount = parseFloat(e.target.amount.value);
         const address = e.target.address.value.trim();
         if (amount <= 0) {
-          alert('Invalid amount');
+          setErrorMessage('Invalid amount');
           return;
         }
         if (!address) {
-          alert('Please enter your USDT (TRC-20) address.');
+          setErrorMessage('Please enter your USDT (TRC-20) address.');
           return;
         }
         if (amount > wallet) {
-          alert('Insufficient balance');
+          setErrorMessage('Insufficient balance');
           return;
         }
         const payload = { action: 'withdraw', email: user.email, amount, address };
@@ -338,17 +361,18 @@
               setWithdrawAddress('');
               alert('Withdrawal successful!');
             } else {
-              alert('Withdrawal failed: ' + (data.message || 'Unknown error'));
+              setErrorMessage('Withdrawal failed: ' + (data.message || 'Unknown error'));
             }
           })
           .catch((error) => {
-            alert('Withdrawal error: ' + error.message);
+            setErrorMessage('Withdrawal error: ' + error.message);
           });
       };
 
       const buyMiner = (miner) => {
+        setErrorMessage('');
         if (!user) {
-          alert('Please login to purchase miners.');
+          setErrorMessage('Please login to purchase miners.');
           return;
         }
         if (wallet >= miner.price) {
@@ -364,14 +388,14 @@
                 setWallet(data.balance);
                 setActiveMiners([...activeMiners, { ...miner, progress: 0 }]);
               } else {
-                alert('Purchase failed: ' + (data.message || 'Unknown error'));
+                setErrorMessage('Purchase failed: ' + (data.message || 'Unknown error'));
               }
             })
             .catch((error) => {
-              alert('Purchase error: ' + error.message);
+              setErrorMessage('Purchase error: ' + error.message);
             });
         } else {
-          alert('Insufficient USDT balance!');
+          setErrorMessage('Insufficient USDT balance!');
         }
       };
 
@@ -382,6 +406,7 @@
         setWithdrawAddress('');
         setReferralLink('');
         setReferrerEmail(null);
+        setErrorMessage('');
         localStorage.removeItem('user');
         localStorage.setItem('wallet', 0);
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -448,6 +473,12 @@
               )}
             </div>
           </header>
+
+          {errorMessage && (
+            <div className="bg-red-500 text-white p-4 mx-6 mt-4 rounded">
+              {errorMessage}
+            </div>
+          )}
 
           {showSignup && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center modal">
